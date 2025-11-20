@@ -193,6 +193,11 @@ KEY RELATIONSHIPS:
    - Date comparisons with datetime: datetime(e.start) > datetime('2020-01-01T00:00:00')
    - Date comparisons with date string: date(substring(e.start, 0, 10)) > date('2020-01-01')
    - Recent dates: datetime(e.start) > datetime() - duration({{days: 30}})
+   - CRITICAL: Many date fields like 'stop' may contain empty strings "" instead of NULL
+   - Always check for both NULL and empty string before date parsing:
+     WHERE m.stop IS NOT NULL AND m.stop <> ""
+   - For discontinued medications: WHERE m.stop IS NOT NULL AND m.stop <> "" AND datetime(m.stop) < datetime()
+   - For active/ongoing (no stop date): WHERE m.stop IS NULL OR m.stop = ""
 
 3. TEXT MATCHING:
    - Case-insensitive: toLower(p.lastName) = toLower('smith')
@@ -241,8 +246,21 @@ A: MATCH (e:Encounter)
 Q: Patients over 65
 A: MATCH (p:Patient)
    WHERE duration.between(date(p.birthDate), date()).years >= 65
-   RETURN p.firstName, p.lastName, 
+   RETURN p.firstName, p.lastName,
           duration.between(date(p.birthDate), date()).years as age
+   LIMIT 10
+
+Q: Discontinued medications still in prescriptions
+A: MATCH (p:Patient)-[:PRESCRIBED]->(m:Medication)
+   WHERE m.stop IS NOT NULL AND m.stop <> ""
+   RETURN p.firstName, p.lastName, m.description, m.start, m.stop
+   ORDER BY m.stop DESC
+   LIMIT 10
+
+Q: Active medications (no stop date)
+A: MATCH (p:Patient)-[:PRESCRIBED]->(m:Medication)
+   WHERE m.stop IS NULL OR m.stop = ""
+   RETURN p.firstName, p.lastName, m.description, m.start
    LIMIT 10
 
 === YOUR TASK ===
