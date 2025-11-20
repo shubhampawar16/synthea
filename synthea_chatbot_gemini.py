@@ -187,10 +187,12 @@ KEY RELATIONSHIPS:
    ✓ healthcareExpenses, healthcareCoverage (NOT healthcare_expenses)
 
 2. DATE OPERATIONS:
-   - Use date() function: date(p.birthDate)
+   - For date fields (birthDate, deathDate): use date(p.birthDate)
+   - For datetime fields (start, stop, date): use datetime(e.start)
    - Calculate age: duration.between(date(p.birthDate), date()).years
-   - Date comparisons: date(e.start) > date('2020-01-01')
-   - Recent dates: date(e.start) > date() - duration({{days: 30}})
+   - Date comparisons with datetime: datetime(e.start) > datetime('2020-01-01T00:00:00')
+   - Date comparisons with date string: date(substring(e.start, 0, 10)) > date('2020-01-01')
+   - Recent dates: datetime(e.start) > datetime() - duration({{days: 30}})
 
 3. TEXT MATCHING:
    - Case-insensitive: toLower(p.lastName) = toLower('smith')
