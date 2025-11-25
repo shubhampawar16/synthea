@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synthea Chatbot WebSocket Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .status.connected {
+            background: #4ade80;
+            color: #064e3b;
+        }
+
+        .status.disconnected {
+            background: #ef4444;
+            color: white;
+        }
+
+        .chat-container {
+            padding: 30px;
+            height: 500px;
+            overflow-y: auto;
+            background: #f9fafb;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.system {
+            background: #e0e7ff;
+            border-left: 4px solid #667eea;
+        }
+
+        .message.user {
+            background: #dbeafe;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .message.bot {
+            background: #d1fae5;
+            border-left: 4px solid #10b981;
+        }
+
+        .message.error {
+            background: #fee2e2;
+            border-left: 4px solid #ef4444;
+        }
+
+        .message .label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .message .content {
+            line-height: 1.6;
+        }
+
+        .cypher-query {
+            background: #1f2937;
+            color: #10b981;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+        }
+
+        .input-container {
+            padding: 20px 30px;
+            background: white;
+            border-top: 2px solid #e5e7eb;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .examples {
+            padding: 0 30px 20px;
+            background: white;
+        }
+
+        .examples-title {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 10px;
+        }
+
+        .example-btn {
+            padding: 8px 15px;
+            margin: 5px 5px 5px 0;
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .example-btn:hover {
+            background: #e5e7eb;
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏥 Synthea Healthcare Chatbot</h1>
+            <p>WebSocket Real-Time Chat</p>
+            <span id="status" class="status disconnected">Disconnected</span>
+        </div>
+
+        <div class="chat-container" id="chatContainer">
+            <div class="message system">
+                <div class="label">System</div>
+                <div class="content">Click "Connect" to start chatting with the AI healthcare assistant.</div>
+            </div>
+        </div>
+
+        <div class="examples">
+            <div class="examples-title">Example Questions:</div>
+            <button class="example-btn" onclick="setQuestion('How many patients are in the database?')">Patient Count</button>
+            <button class="example-btn" onclick="setQuestion('What are the most common conditions?')">Common Conditions</button>
+            <button class="example-btn" onclick="setQuestion('Show me patients with diabetes')">Diabetes Patients</button>
+            <button class="example-btn" onclick="setQuestion('Which medications are prescribed most often?')">Top Medications</button>
+        </div>
+
+        <div class="input-container">
+            <div class="input-group">
+                <input
+                    type="text"
+                    id="questionInput"
+                    placeholder="Ask a question about healthcare data..."
+                    disabled
+                >
+                <button id="sendBtn" onclick="sendQuestion()" disabled>Send</button>
+                <button id="connectBtn" onclick="toggleConnection()">Connect</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let isConnected = false;
+
+        const chatContainer = document.getElementById('chatContainer');
+        const questionInput = document.getElementById('questionInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const connectBtn = document.getElementById('connectBtn');
+        const statusElement = document.getElementById('status');
+
+        function addMessage(type, label, content, cypherQuery = null) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+
+            const labelDiv = document.createElement('div');
+            labelDiv.className = 'label';
+            labelDiv.textContent = label;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'content';
+            contentDiv.textContent = content;
+
+            messageDiv.appendChild(labelDiv);
+            messageDiv.appendChild(contentDiv);
+
+            if (cypherQuery) {
+                const queryDiv = document.createElement('div');
+                queryDiv.className = 'cypher-query';
+                queryDiv.textContent = `Query: ${cypherQuery}`;
+                messageDiv.appendChild(queryDiv);
+            }
+
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function updateStatus(connected) {
+            isConnected = connected;
+            statusElement.textContent = connected ? 'Connected' : 'Disconnected';
+            statusElement.className = `status ${connected ? 'connected' : 'disconnected'}`;
+            connectBtn.textContent = connected ? 'Disconnect' : 'Connect';
+            questionInput.disabled = !connected;
+            sendBtn.disabled = !connected;
+        }
+
+        function toggleConnection() {
+            if (isConnected) {
+                disconnect();
+            } else {
+                connect();
+            }
+        }
+
+        function connect() {
+            const wsUrl = 'ws://127.0.0.1:8000/ws/ask';
+            addMessage('system', 'System', `Connecting to ${wsUrl}...`);
+
+            try {
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = () => {
+                    addMessage('system', 'System', 'Connected successfully! You can now ask questions.');
+                    updateStatus(true);
+                };
+
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+
+                    switch (data.type) {
+                        case 'connected':
+                            addMessage('system', 'System', data.message);
+                            break;
+
+                        case 'processing':
+                            addMessage('system', 'Processing', data.message);
+                            break;
+
+                        case 'answer':
+                            addMessage('bot', 'Assistant', data.answer, data.cypher_query);
+                            break;
+
+                        case 'error':
+                            addMessage('error', 'Error', data.error);
+                            break;
+                    }
+                };
+
+                ws.onerror = (error) => {
+                    addMessage('error', 'Error', 'WebSocket error occurred. Make sure the server is running.');
+                    updateStatus(false);
+                };
+
+                ws.onclose = () => {
+                    addMessage('system', 'System', 'Connection closed.');
+                    updateStatus(false);
+                };
+
+            } catch (error) {
+                addMessage('error', 'Error', `Failed to connect: ${error.message}`);
+                updateStatus(false);
+            }
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function sendQuestion() {
+            const question = questionInput.value.trim();
+
+            if (!question) {
+                alert('Please enter a question');
+                return;
+            }
+
+            if (!isConnected || !ws) {
+                alert('Not connected to server');
+                return;
+            }
+
+            addMessage('user', 'You', question);
+            ws.send(JSON.stringify({ question: question }));
+            questionInput.value = '';
+        }
+
+        function setQuestion(question) {
+            questionInput.value = question;
+            questionInput.focus();
+        }
+
+        // Allow Enter key to send message
+        questionInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendQuestion();
+            }
+        });
+    </script>
+</body>
+</html>
